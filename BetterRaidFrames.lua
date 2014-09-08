@@ -759,6 +759,7 @@ end
 
 function BetterRaidFrames:ParseLeave(tMsg, idx, tMemberData)
 	self.tMemberToGroup[idx] = "Raid"
+	self.nDirtyFlag = bit32.bor(self.nDirtyFlag, knDirtyGeneral)
 end
 
 function BetterRaidFrames:SendLeave()
