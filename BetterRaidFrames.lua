@@ -2767,7 +2767,7 @@ function BetterRaidFrames:OnSetChannel(tokens)
 	self.settings.strChannelName = chanName
 	self:JoinBRFChannel(chanName)
 	self:SendSync()
-	self:SendUpdate(self.kstrMyName, chanName)
+	self:SendUpdate(self.kstrMyName, self.settings.strMyGroup)
 end
 
 -- Command: /brf group <name>
