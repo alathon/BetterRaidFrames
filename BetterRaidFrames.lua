@@ -725,6 +725,8 @@ function BetterRaidFrames:ParseBRFMessage(tMsg, idx, tMemberData)
 		return self:ParseSync(tMsg, idx, tMemberData)
 	elseif tMsg.strMsgType == "UPDATE" then
 		return self:ParseUpdate(tMsg, idx, tMemberData)
+	elseif tMsg.strMsgType == "LEAVE" then
+		return self:ParseLeave(tMsg, idx, tMemberData)
 	end
 end
 
@@ -753,6 +755,19 @@ function BetterRaidFrames:ParseUpdate(tMsg, idx, tMemberData)
 	end
 	
 	self.nDirtyFlag = bit32.bor(self.nDirtyFlag, knDirtyGeneral)
+end
+
+function BetterRaidFrames:ParseLeave(tMsg, idx, tMemberData)
+	self.tMemberToGroup[idx] = "Raid"
+end
+
+function BetterRaidFrames:SendLeave()
+	if self.chanBrf == nil then return end
+	
+	local msg = {}
+	msg.strMsgType = "LEAVE"
+	msg.strCharacterName = self.kstrMyName
+	self:SendBRFMessage(msg)
 end
 
 function BetterRaidFrames:SendSync()
@@ -2738,6 +2753,10 @@ function BetterRaidFrames:OnSlashCmd(sCmd, sInput)
 end
 
 function BetterRaidFrames:JoinBRFChannel(chan)
+	if self.chanBrf ~= nil then
+		self:SendLeave(self.kstrMyName)
+	end
+
 	self.chanBrf = ICCommLib.JoinChannel(chan, "OnBRFMessage", self)
 	self:CPrint("Your BRF communication channel is now: " .. chan)
 end
