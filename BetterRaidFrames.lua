@@ -404,7 +404,6 @@ function BetterRaidFrames:OnDocumentReady()
 	
 	-- Used to delay talking with the ICCommLib channel, as it seems to not like joining and sending a message right away.
 	Apollo.RegisterTimerHandler("BrfSyncTimer", "OnBrfSyncTimer", self)
-	Apollo.RegisterTimerHandler("BrfSyncUpdateTimer", "OnBrfSyncUpdateTimer", self)
 	
 	
 	-- Load TearOff addon
@@ -414,10 +413,6 @@ function BetterRaidFrames:OnDocumentReady()
 	self.GeminiColor = Apollo.GetPackage("GeminiColor").tPackage
 
 	function BetterRaidFrames:OnBrfSyncTimer()
-		self:SendSync()
-	end
-	
-	function BetterRaidFrames:OnBrfSyncUpdateTimer()
 		self:SendSync()
 		self:SendUpdate(self.kstrMyName, self.settings.strMyGroup)
 	end
@@ -2756,7 +2751,7 @@ function BetterRaidFrames:OnSetChannel(tokens)
 	local chanName = tokens[2]
 	self.settings.strChannelName = chanName
 	self:JoinBRFChannel(chanName)
-	Apollo.CreateTimer("BrfSyncUpdateTimer", 1.0, false)
+	Apollo.CreateTimer("BrfSyncTimer", 1.0, false)
 end
 
 -- Command: /brf group <name>
