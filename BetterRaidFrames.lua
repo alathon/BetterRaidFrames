@@ -654,7 +654,6 @@ function BetterRaidFrames:ShowVariables()
 end
 
 ----------- Manage tNamedGroups and tMemberToGroup. -------
-
 -- Used whenever UI is loaded and/or you join a raid.
 -- We save our own previous group, but not everyone elses.
 -- Their group will get updated anyway as we sync.
@@ -767,10 +766,9 @@ function BetterRaidFrames:SendSync()
 	msg.strCharacterName = self.kstrMyName
 	msg.strMsgType = "SYNC"
 	self:SendBRFMessage(msg)
-	self:OnBRFMessage(self.chanBrf, msg)
 end
 
-function BetterRaidFrames:SendUpdate(strCharacterName, strGroup, strGroupOld)
+function BetterRaidFrames:SendUpdate(strCharacterName, strGroup)
 	if self.chanBrf == nil then return end
 
 	local msg = {}
@@ -785,10 +783,6 @@ function BetterRaidFrames:OnCharacterCreated()
 	local unitPlayer = GameLib.GetPlayerUnit()
 	self.kstrMyName = unitPlayer:GetName()
 	self.unitTarget = GameLib.GetTargetUnit()
-	--if GroupLib.InRaid() and self.chanBrf ~= nil then
-	--	self:SetDefaultGroup()
-	--	self:SendSync()
-	--end
 	self:BuildAllFrames()
 	self:ResizeAllFrames()
 end
@@ -808,6 +802,7 @@ function BetterRaidFrames:OnRaidFrameBaseTimer()
 	if not self.wndMain:IsShown() and not self.settings.bDisableFrames then
 		self:SetDefaultGroup()
 		if self.chanBrf == nil and self.settings.strChannelName then
+			self:CPrint("Joining...")
 			self:JoinBRFChannel(self.settings.strChannelName)
 		end
 		self:SendSync()
@@ -917,10 +912,6 @@ end
 function BetterRaidFrames:OnGroup_Join()
 	if not GroupLib.InRaid() then return end
 	
-	--if self.settings.strChannelName ~= nil then
-	--	self:SetDefaultGroup()
-	--	self:SendSync()
-	--end
 	self.nDirtyFlag = bit32.bor(self.nDirtyFlag, knDirtyGeneral)
 end
 
@@ -2764,9 +2755,9 @@ function BetterRaidFrames:OnSetChannel(tokens)
 	end
 	local chanName = tokens[2]
 	self.settings.strChannelName = chanName
-	self:SetDefaultGroup()
 	self:JoinBRFChannel(chanName)
 	self:SendSync()
+	self:SendUpdate(self.kstrMyName, chanName)
 end
 
 -- Command: /brf group <name>
@@ -2799,8 +2790,7 @@ function BetterRaidFrames:OnSetGroup(tokens)
 		for idx = 1, nMembers do
 			local tMemberData = GroupLib.GetGroupMember(idx)
 			if string.lower(tMemberData.strCharacterName) == playerName then
-				local oldGroup = self.tMemberToGroup[idx]
-				return self:SendUpdate(tMemberData.strCharacterName, groupName, oldGroup)
+				return self:SendUpdate(tMemberData.strCharacterName, groupName)
 			end
 		end
 		self:CPrint("Unable to find player by the name of " .. playerName)
@@ -2808,13 +2798,11 @@ function BetterRaidFrames:OnSetGroup(tokens)
 		if groupName == self.settings.strMyGroup then
 			self:CPrint("You are already in that group.")
 		end
-		
-		local oldGroup = self.settings.strMyGroup
+
 		self.settings.strMyGroup = groupName
-		self:CPrint("Your group is now set to: " .. groupName .. " (was " .. oldGroup .. ")")
+		self:CPrint("Your group is now set to: " .. groupName)
 		if GroupLib.InRaid() then
-			self:CPrint("Updating...")
-			self:SendUpdate(self.kstrMyName, groupName, oldGroup)
+			self:SendUpdate(self.kstrMyName, groupName)
 		end
 	end
 end
