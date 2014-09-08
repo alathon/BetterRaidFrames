@@ -418,9 +418,7 @@ function BetterRaidFrames:OnDocumentReady()
 		self:UpdateBarArtTimer()
 		self:UpdateBoostFoodTimer()
 		self:UpdateMainUpdateTimer()
-		if GroupLib.InRaid() and self.chanBrf ~= nil then
-			self:SendSync()
-		end
+
 	end
 
 	self.wndMain = Apollo.LoadForm(self.xmlDoc, "BetterRaidFramesForm", "FixedHudStratum", self)
@@ -672,20 +670,10 @@ function BetterRaidFrames:SetDefaultGroup()
 	local nMembers = GroupLib.GetMemberCount()
 	self.tMemberToGroup = {}
 	self.tNamedGroups = {["Raid"] = nMembers}
-	
-	--if self.settings.strMyGroup == "Raid" then
-	--	self.tNamedGroups["Raid"] = self.tNamedGroups["Raid"] + 1
-	--else
-	--	self.tNamedGroups[self.settings.strMyGroup] = 1
-	--end
 
 	for idx = 1, nMembers do
 		local tMemberData = GroupLib.GetGroupMember(idx)
-		--if tMemberData.strCharacterName == self.kstrMyName then
-		--	self.tMemberToGroup[idx] = self.settings.strMyGroup
-		--else
 		self.tMemberToGroup[idx] = "Raid"
-		--end
 	end
 end
 		
@@ -694,14 +682,14 @@ end
 function BetterRaidFrames:AddPlayerToGroup(idx, strGroup)
 	if self.chanBrf == nil then return end
 	
-	--self:CPrint("Adding player with idx " .. idx .. " to group " .. strGroup)
+	self:CPrint("Adding player with idx " .. idx .. " to group " .. strGroup)
 	self.tMemberToGroup[idx] = strGroup
 	if self.tNamedGroups[strGroup] == nil then
-		--self:CPrint("Group didn't exist before, creating.")
+		self:CPrint("Group didn't exist before, creating.")
 		self.tNamedGroups[strGroup] = 1
 		return knDirtyGeneral
 	else
-		--self:CPrint("Group already existed. Counter now at " .. self.tNamedGroups[strGroup])
+		self:CPrint("Group already existed. Counter now at " .. self.tNamedGroups[strGroup])
 		self.tNamedGroups[strGroup] = self.tNamedGroups[strGroup] + 1
 		return knDirtyMembers
 	end
@@ -710,12 +698,12 @@ end
 function BetterRaidFrames:RemovePlayerFromGroup(idx, strGroup)
 	if self.chanBrf == nil then return end
 	
-	--self:CPrint("Removing player with idx " .. idx .. " from group " .. strGroup)
+	self:CPrint("Removing player with idx " .. idx .. " from group " .. strGroup)
 	self.tMemberToGroup[idx] = nil
 	if self.tNamedGroups[strGroup] ~= nil then
 		self.tNamedGroups[strGroup] = self.tNamedGroups[strGroup] - 1
 		if self.tNamedGroups[strGroup] <= 0 then
-			--self:CPrint("Group " .. strGroup .. " no longer has any players. Removing.")
+			self:CPrint("Group " .. strGroup .. " no longer has any players. Removing.")
 			self.tNamedGroups[strGroup] = nil
 			return knDirtyGeneral
 		end
@@ -727,15 +715,15 @@ end
 function BetterRaidFrames:SendBRFMessage(tMsg)
 	if self.chanBrf == nil then return end
 		
-	--self:CPrint("Sending message.. Type:" .. tMsg.strMsgType .. " Char: " .. tMsg.strCharacterName)
+	self:CPrint("Sending message.. Type:" .. tMsg.strMsgType .. " Char: " .. tMsg.strCharacterName)
 	self.chanBrf:SendMessage(tMsg)
 end
 
 function BetterRaidFrames:OnBRFMessage(channel, tMsg)
-	--self:CPrint("Received message... Type:" .. tMsg.strMsgType .. " Char:" .. tMsg.strCharacterName)
+	self:CPrint("Received message... Type:" .. tMsg.strMsgType .. " Char:" .. tMsg.strCharacterName)
 	-- Ignore when not in a raid, or invalid message type.
 	if not GroupLib.InRaid() or tMsg.strMsgType == nil then
-		--self:CPrint("Not in a raid.") 
+		self:CPrint("Not in a raid.") 
 		return 
 	end
 
@@ -745,7 +733,7 @@ function BetterRaidFrames:OnBRFMessage(channel, tMsg)
 	for idx = 1, nGroupMemberCount do
 		local tMemberData = GroupLib.GetGroupMember(idx)
 		if tMemberData.strCharacterName == tMsg.strCharacterName then
-			--self:CPrint("Found matching character: " .. tMsg.strCharacterName)
+			self:CPrint("Found matching character: " .. tMsg.strCharacterName)
 			return self:ParseBRFMessage(tMsg, idx, tMemberData)
 		end
 	end
@@ -835,9 +823,9 @@ function BetterRaidFrames:OnCharacterCreated()
 	local unitPlayer = GameLib.GetPlayerUnit()
 	self.kstrMyName = unitPlayer:GetName()
 	self.unitTarget = GameLib.GetTargetUnit()
-	if self.settings.strChannelName ~= nil then
+	if GroupLib.InRaid() and self.chanBrf ~= nil then
 		self:SetDefaultGroup()
-		self:JoinBRFChannel(self.settings.strChannelName)
+		self:SendSync()
 	end
 	self:BuildAllFrames()
 	self:ResizeAllFrames()
@@ -856,6 +844,8 @@ function BetterRaidFrames:OnRaidFrameBaseTimer()
 	end
 	
 	if not self.wndMain:IsShown() and not self.settings.bDisableFrames then
+		self:SetDefaultGroup()
+		self:SendSync()
 		self:OnMasterLootUpdate()
 		self.wndMain:Show(true)
 	end
@@ -1181,7 +1171,7 @@ function BetterRaidFrames:UpdateAllMembers()
 		end	
 		
 		-- Update opacity if out of range
-		if not self.settings.bDisableFrames then
+		if not self.settings.bDisableFrames and tMemberData then
 			self:CheckRangeHelper(tRaidMember, unitMember, tMemberData)
 		end
 		
@@ -1213,7 +1203,7 @@ function BetterRaidFrames:UpdateAllMembers()
 			-- Scaling
 			self:ResizeBars(tRaidMember, bDead)
 			
-			if not tMemberData.bIsOnline or tMemberData.nHealthMax == 0 or tMemberData.nHealth == 0 then
+			if tMemberData and not tMemberData.bIsOnline or tMemberData.nHealthMax == 0 or tMemberData.nHealth == 0 then
 				nInvalidOrDeadMembers = nInvalidOrDeadMembers + 1
 			end
 		end
