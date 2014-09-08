@@ -1116,17 +1116,15 @@ function BetterRaidFrames:UpdateAllMembers()
 		if not self.settings.bDisableFrames then
 		 	unitMember = GroupLib.GetUnitForGroupMember(idx)
 		end
-		
-		if not tMemberData then return end
 
-		if not self.settings.bDisableFrames then
+		if not self.settings.bDisableFrames and tMemberData then
 			local bOutOfRange = tMemberData.nHealthMax == 0 or not unitMember
 			local bDead = tMemberData.nHealth == 0 and tMemberData.nHealthMax ~= 0
 			local bIsOnline = tMemberData.bIsOnline
 			if not bOutOfRange and not bDead and bIsOnline then
 				-- Change the HP Bar Color if required for debuff tracking
 				local DebuffColorRequired = self:TrackDebuffsHelper(unitMember, tRaidMember)
-				-- Update Bar Colors
+				-- Update Bar Colors;`
 				self:UpdateBarColors(tRaidMember, tMemberData, DebuffColorRequired)
 		
 				-- Update Text Overlays
@@ -1138,11 +1136,11 @@ function BetterRaidFrames:UpdateAllMembers()
 		end	
 		
 		-- Update opacity if out of range
-		if not self.settings.bDisableFrames then
+		if not self.settings.bDisableFrames and tMemberData then
 			self:CheckRangeHelper(tRaidMember, unitMember, tMemberData)
 		end
 		
-		if not self.settings.bDisableFrames then
+		if not self.settings.bDisableFrames and tMemberData then
 			local bTargetThisMember = unitTarget and unitTarget == unitMember
 			local bFrameLocked = self.wndRaidLockFrameBtn:IsChecked()
 			wndMemberBtn:SetCheck(bTargetThisMember)
