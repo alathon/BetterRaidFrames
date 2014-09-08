@@ -315,7 +315,7 @@ function BetterRaidFrames:OnLoad()
 	
 	-- Register ICCommLib stuff.
 	self.tMemberToGroup = {}
-	
+
 	self.settings = self.settings or {}
 	self.settings.strMyGroup = self.settings.strMyGroup or "Raid"
 	
@@ -402,11 +402,19 @@ function BetterRaidFrames:OnDocumentReady()
 	-- Required for saving frame location across sessions
 	Apollo.RegisterEventHandler("WindowManagementReady", 	"OnWindowManagementReady", self)
 	
+	-- Used to delay talking with the ICCommLib channel, as it seems to not like joining and sending a message right away.
+	Apollo.RegisterTimerHandler("ChannelTimer", "OnBrfChannelTimer", self)
+	
+	
 	-- Load TearOff addon
 	self.BetterRaidFramesTearOff = Apollo.GetAddon("BetterRaidFramesTearOff")
 	
 	-- GeminiColor
 	self.GeminiColor = Apollo.GetPackage("GeminiColor").tPackage
+
+	function BetterRaidFrames:OnBrfChannelTimer()
+		self:SendSync()
+	end
 	
 	-- Sets the party frame location once windows are ready.
 	function BetterRaidFrames:OnWindowManagementReady()
@@ -690,7 +698,10 @@ function BetterRaidFrames:SendBRFMessage(tMsg)
 	if self.chanBrf == nil then return end
 		
 	self:CPrint("Sending message.. Type:" .. tMsg.strMsgType .. " Char: " .. tMsg.strCharacterName)
-	self.chanBrf:SendMessage(tMsg)
+	local res = self.chanBrf:SendMessage(tMsg)
+	if res == false then
+		self:CPrint("Failed to send BRF Message!")
+	end
 end
 
 function BetterRaidFrames:OnBRFMessage(channel, tMsg)
@@ -802,10 +813,9 @@ function BetterRaidFrames:OnRaidFrameBaseTimer()
 	if not self.wndMain:IsShown() and not self.settings.bDisableFrames then
 		self:SetDefaultGroup()
 		if self.chanBrf == nil and self.settings.strChannelName then
-			self:CPrint("Joining...")
 			self:JoinBRFChannel(self.settings.strChannelName)
+			Apollo.CreateTimer("ChannelTimer", 1.0, false)
 		end
-		self:SendSync()
 		self:OnMasterLootUpdate()
 		self.wndMain:Show(true)
 	end
