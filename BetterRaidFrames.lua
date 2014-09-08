@@ -314,7 +314,6 @@ function BetterRaidFrames:OnLoad()
 	Apollo.RegisterSlashCommand("brf", "OnSlashCmd", self)
 	
 	-- Register ICCommLib stuff.
-	self.tNamedGroups = {}
 	self.tMemberToGroup = {}
 	
 	self.settings = self.settings or {}
@@ -418,7 +417,6 @@ function BetterRaidFrames:OnDocumentReady()
 		self:UpdateBarArtTimer()
 		self:UpdateBoostFoodTimer()
 		self:UpdateMainUpdateTimer()
-
 	end
 
 	self.wndMain = Apollo.LoadForm(self.xmlDoc, "BetterRaidFramesForm", "FixedHudStratum", self)
@@ -651,10 +649,6 @@ function BetterRaidFrames:ShowVariables()
 	for k,v in pairs(self.tMemberToGroup) do
 		self:CPrint("key: " .. k .. " value: " .. v)
 	end
-	self:CPrint("tNamedGroups:")
-	for k,v in pairs(self.tNamedGroups) do
-		self:CPrint("Key: " .. k .. " Members: " .. v)
-	end
 	self:CPrint("Group: " .. self.settings.strMyGroup)
 	self:CPrint("Channel: " .. self.settings.strChannelName)
 end
@@ -669,30 +663,20 @@ function BetterRaidFrames:SetDefaultGroup()
 	
 	local nMembers = GroupLib.GetMemberCount()
 	self.tMemberToGroup = {}
-	self.tNamedGroups = {["Raid"] = nMembers}
 
 	for idx = 1, nMembers do
 		local tMemberData = GroupLib.GetGroupMember(idx)
 		self.tMemberToGroup[idx] = "Raid"
 	end
 end
-		
--- tNamedGroups is a table of ["GroupName"] -> MemberCount
+
 -- tMemberToGroup is a table of Index -> GroupName
 function BetterRaidFrames:AddPlayerToGroup(idx, strGroup)
 	if self.chanBrf == nil then return end
 	
 	self:CPrint("Adding player with idx " .. idx .. " to group " .. strGroup)
 	self.tMemberToGroup[idx] = strGroup
-	if self.tNamedGroups[strGroup] == nil then
-		self:CPrint("Group didn't exist before, creating.")
-		self.tNamedGroups[strGroup] = 1
-		return knDirtyGeneral
-	else
-		self:CPrint("Group already existed. Counter now at " .. self.tNamedGroups[strGroup])
-		self.tNamedGroups[strGroup] = self.tNamedGroups[strGroup] + 1
-		return knDirtyMembers
-	end
+	return knDirtyGeneral
 end
 
 function BetterRaidFrames:RemovePlayerFromGroup(idx, strGroup)
@@ -700,16 +684,7 @@ function BetterRaidFrames:RemovePlayerFromGroup(idx, strGroup)
 	
 	self:CPrint("Removing player with idx " .. idx .. " from group " .. strGroup)
 	self.tMemberToGroup[idx] = nil
-	if self.tNamedGroups[strGroup] ~= nil then
-		self.tNamedGroups[strGroup] = self.tNamedGroups[strGroup] - 1
-		if self.tNamedGroups[strGroup] <= 0 then
-			self:CPrint("Group " .. strGroup .. " no longer has any players. Removing.")
-			self.tNamedGroups[strGroup] = nil
-			return knDirtyGeneral
-		end
-	end
-
-	return knDirtyMembers
+	return knDirtyGeneral
 end
 
 function BetterRaidFrames:SendBRFMessage(tMsg)
@@ -774,18 +749,6 @@ function BetterRaidFrames:ParseUpdate(tMsg, idx, tMemberData)
 		return 
 	end
 
-	-- Sort of a hack. If its a sync reply its an UPDATE with a target,
-	-- which means they've been put into 'Raid' by SetDefaultGroup(), which
-	-- they may not actually be in! So lets remove them from it.
-	if tMsg.strTargetName and tMsg.strGroup ~= "Raid" then
-		tMsg.strGroupOld = "Raid"
-	end
-
-	if tMsg.strGroupOld ~= nil then
-		--self:CPrint("Removing from old group " .. tMsg.strGroupOld)
-		self:RemovePlayerFromGroup(idx, tMsg.strGroupOld)
-	end
-	
 	--self:CPrint("Adding " .. idx .. " to group " .. tMsg.strGroup)
 	self:AddPlayerToGroup(idx, tMsg.strGroup)
 	
@@ -813,7 +776,6 @@ function BetterRaidFrames:SendUpdate(strCharacterName, strGroup, strGroupOld)
 	local msg = {}
 	msg.strCharacterName = strCharacterName
 	msg.strGroup = strGroup
-	msg.strGroupOld = strGroupOld
 	msg.strMsgType = "UPDATE"
 	self:SendBRFMessage(msg)
 	self:OnBRFMessage(self.chanBrf, msg)
@@ -823,10 +785,10 @@ function BetterRaidFrames:OnCharacterCreated()
 	local unitPlayer = GameLib.GetPlayerUnit()
 	self.kstrMyName = unitPlayer:GetName()
 	self.unitTarget = GameLib.GetTargetUnit()
-	if GroupLib.InRaid() and self.chanBrf ~= nil then
-		self:SetDefaultGroup()
-		self:SendSync()
-	end
+	--if GroupLib.InRaid() and self.chanBrf ~= nil then
+	--	self:SetDefaultGroup()
+	--	self:SendSync()
+	--end
 	self:BuildAllFrames()
 	self:ResizeAllFrames()
 end
@@ -845,6 +807,9 @@ function BetterRaidFrames:OnRaidFrameBaseTimer()
 	
 	if not self.wndMain:IsShown() and not self.settings.bDisableFrames then
 		self:SetDefaultGroup()
+		if self.chanBrf == nil and self.settings.strChannelName then
+			self:JoinBRFChannel(self.settings.strChannelName)
+		end
 		self:SendSync()
 		self:OnMasterLootUpdate()
 		self.wndMain:Show(true)
@@ -952,10 +917,10 @@ end
 function BetterRaidFrames:OnGroup_Join()
 	if not GroupLib.InRaid() then return end
 	
-	if self.settings.strChannelName ~= nil then
-		self:SetDefaultGroup()
-		self:SendSync()
-	end
+	--if self.settings.strChannelName ~= nil then
+	--	self:SetDefaultGroup()
+	--	self:SendSync()
+	--end
 	self.nDirtyFlag = bit32.bor(self.nDirtyFlag, knDirtyGeneral)
 end
 
@@ -1038,9 +1003,9 @@ function BetterRaidFrames:BuildAllFrames()
 
 	if self.settings.bUseGroups then
 		local cats = {}
-		for key, strCurrCategory in pairs(self.tNamedGroups) do
-			table.insert(cats, key)
-			self:CPrint("BuildAllFrames: Category: " .. key)
+		for idx, grp in ipairs(self.tMemberToGroup) do
+			cats[grp] = grp
+			self:CPrint("BuildAllFrames: Category: " .. grp)
 		end
 		tCategoriesToUse = cats
 	end
@@ -1152,7 +1117,9 @@ function BetterRaidFrames:UpdateAllMembers()
 		 	unitMember = GroupLib.GetUnitForGroupMember(idx)
 		end
 		
-		if not self.settings.bDisableFrames and tMemberData then
+		if not tMemberData then return end
+
+		if not self.settings.bDisableFrames then
 			local bOutOfRange = tMemberData.nHealthMax == 0 or not unitMember
 			local bDead = tMemberData.nHealth == 0 and tMemberData.nHealthMax ~= 0
 			local bIsOnline = tMemberData.bIsOnline
@@ -1171,39 +1138,36 @@ function BetterRaidFrames:UpdateAllMembers()
 		end	
 		
 		-- Update opacity if out of range
-		if not self.settings.bDisableFrames and tMemberData then
+		if not self.settings.bDisableFrames then
 			self:CheckRangeHelper(tRaidMember, unitMember, tMemberData)
 		end
 		
 		if not self.settings.bDisableFrames then
-			-- HP and Shields
-			if tMemberData then
-				local bTargetThisMember = unitTarget and unitTarget == unitMember
-				local bFrameLocked = self.wndRaidLockFrameBtn:IsChecked()
-				wndMemberBtn:SetCheck(bTargetThisMember)
-				self:DoHPAndShieldResizing(tRaidMember, tMemberData)
-	
-				-- Mana Bar
-				local bShowManaBar = self.settings.bShowFocus and tMemberData.bHealer
-				local wndManaBar = wndMemberBtn:FindChild("RaidMemberManaBar")
-	
-				if bShowManaBar and tMemberData.nMana and tMemberData.nMana > 0 then
-					local nManaMax
-					if tMemberData.nManaMax	<= 0 then
-						nManaMax = 1000
-					else
-						nManaMax = tMemberData.nManaMax
-					end
-					wndManaBar:SetMax(nManaMax)
-					wndManaBar:SetProgress(tMemberData.nMana)	
+			local bTargetThisMember = unitTarget and unitTarget == unitMember
+			local bFrameLocked = self.wndRaidLockFrameBtn:IsChecked()
+			wndMemberBtn:SetCheck(bTargetThisMember)
+			self:DoHPAndShieldResizing(tRaidMember, tMemberData)
+
+			-- Mana Bar
+			local bShowManaBar = self.settings.bShowFocus and tMemberData.bHealer
+			local wndManaBar = wndMemberBtn:FindChild("RaidMemberManaBar")
+
+			if bShowManaBar and tMemberData.nMana and tMemberData.nMana > 0 then
+				local nManaMax
+				if tMemberData.nManaMax	<= 0 then
+					nManaMax = 1000
+				else
+					nManaMax = tMemberData.nManaMax
 				end
-				wndManaBar:Show(bShowManaBar and tMemberData.bIsOnline and not bDead and not bOutOfRange)			
+				wndManaBar:SetMax(nManaMax)
+				wndManaBar:SetProgress(tMemberData.nMana)	
 			end
+			wndManaBar:Show(bShowManaBar and tMemberData.bIsOnline and not bDead and not bOutOfRange)			
 			
 			-- Scaling
 			self:ResizeBars(tRaidMember, bDead)
 			
-			if tMemberData and not tMemberData.bIsOnline or tMemberData.nHealthMax == 0 or tMemberData.nHealth == 0 then
+			if not tMemberData.bIsOnline or tMemberData.nHealthMax == 0 or tMemberData.nHealth == 0 then
 				nInvalidOrDeadMembers = nInvalidOrDeadMembers + 1
 			end
 		end
@@ -1981,7 +1945,7 @@ function BetterRaidFrames:DestroyMemberWindows(nMemberIdx)
 			local wndMember = wndCategory:FindChild(nMemberIdx)
 			if wndMember ~= nil then
 				local strGroupName = self.tMemberToGroup[nMemberIdx]
-				self:RemovePlayerFromGroup(nMemberIdx, strGroupName)
+				self.tMemberToGroup[nMemberIdx] = nil
 				self.arMemberIndexToWindow[nMemberIdx] = nil
 				wndMember:Destroy()
 			end
