@@ -413,6 +413,7 @@ function BetterRaidFrames:OnDocumentReady()
 	self.GeminiColor = Apollo.GetPackage("GeminiColor").tPackage
 
 	function BetterRaidFrames:OnBrfSyncTimer()
+		self:SetDefaultGroup()
 		self:SendSync()
 		self:SendUpdate(self.kstrMyName, self.settings.strMyGroup)
 	end
@@ -795,7 +796,6 @@ function BetterRaidFrames:OnRaidFrameBaseTimer()
 	end
 	
 	if not self.wndMain:IsShown() and not self.settings.bDisableFrames then
-		self:SetDefaultGroup()
 		if self.chanBrf == nil and self.settings.strChannelName then
 			self:JoinBRFChannel(self.settings.strChannelName)
 			Apollo.CreateTimer("BrfSyncTimer", 1.0, false)
