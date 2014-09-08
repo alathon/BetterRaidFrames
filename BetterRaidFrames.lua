@@ -749,10 +749,7 @@ function BetterRaidFrames:ParseUpdate(tMsg, idx, tMemberData)
 		return 
 	end
 
-	--self:CPrint("Adding " .. idx .. " to group " .. tMsg.strGroup)
-	self:AddPlayerToGroup(idx, tMsg.strGroup)
-	
-	self.tMemberToGroup[idx] = strGroup
+	self.tMemberToGroup[idx] = tMsg.strGroup
 	
 	-- In case leader changed my group.
 	if tMemberData.strCharacterName == self.kstrMyName then
