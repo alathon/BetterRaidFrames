@@ -675,6 +675,7 @@ function BetterRaidFrames:SetDefaultGroup()
 		local tMemberData = GroupLib.GetGroupMember(idx)
 		self.tMemberToGroup[idx] = "Raid"
 	end
+	self.nDirtyFlag = bit32.bor(self.nDirtyFlag, knDirtyGeneral)
 end
 
 -- tMemberToGroup is a table of Index -> GroupName
@@ -683,7 +684,7 @@ function BetterRaidFrames:AddPlayerToGroup(idx, strGroup)
 	
 	self:CPrint("Adding player with idx " .. idx .. " to group " .. strGroup)
 	self.tMemberToGroup[idx] = strGroup
-	return knDirtyGeneral
+	self.nDirtyFlag = bit32.bor(self.nDirtyFlag, knDirtyGeneral)
 end
 
 function BetterRaidFrames:RemovePlayerFromGroup(idx, strGroup)
@@ -691,7 +692,7 @@ function BetterRaidFrames:RemovePlayerFromGroup(idx, strGroup)
 	
 	self:CPrint("Removing player with idx " .. idx .. " from group " .. strGroup)
 	self.tMemberToGroup[idx] = nil
-	return knDirtyGeneral
+	self.nDirtyFlag = bit32.bor(self.nDirtyFlag, knDirtyGeneral)
 end
 
 function BetterRaidFrames:SendBRFMessage(tMsg)
@@ -816,6 +817,7 @@ function BetterRaidFrames:OnRaidFrameBaseTimer()
 			self:JoinBRFChannel(self.settings.strChannelName)
 			Apollo.CreateTimer("ChannelTimer", 1.0, false)
 		end
+		
 		self:OnMasterLootUpdate()
 		self.wndMain:Show(true)
 	end
