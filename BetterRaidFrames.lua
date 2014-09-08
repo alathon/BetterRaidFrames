@@ -403,7 +403,8 @@ function BetterRaidFrames:OnDocumentReady()
 	Apollo.RegisterEventHandler("WindowManagementReady", 	"OnWindowManagementReady", self)
 	
 	-- Used to delay talking with the ICCommLib channel, as it seems to not like joining and sending a message right away.
-	Apollo.RegisterTimerHandler("ChannelTimer", "OnBrfChannelTimer", self)
+	Apollo.RegisterTimerHandler("BrfSyncTimer", "OnBrfSyncTimer", self)
+	Apollo.RegisterTimerHandler("BrfSyncUpdateTimer", "OnBrfSyncUpdateTimer", self)
 	
 	
 	-- Load TearOff addon
@@ -412,8 +413,13 @@ function BetterRaidFrames:OnDocumentReady()
 	-- GeminiColor
 	self.GeminiColor = Apollo.GetPackage("GeminiColor").tPackage
 
-	function BetterRaidFrames:OnBrfChannelTimer()
+	function BetterRaidFrames:OnBrfSyncTimer()
 		self:SendSync()
+	end
+	
+	function BetterRaidFrames:OnBrfSyncUpdateTimer()
+		self:SendSync()
+		self:SendUpdate(self.kstrMyName, self.settings.strMyGroup)
 	end
 	
 	-- Sets the party frame location once windows are ready.
@@ -678,23 +684,6 @@ function BetterRaidFrames:SetDefaultGroup()
 	self.nDirtyFlag = bit32.bor(self.nDirtyFlag, knDirtyGeneral)
 end
 
--- tMemberToGroup is a table of Index -> GroupName
-function BetterRaidFrames:AddPlayerToGroup(idx, strGroup)
-	if self.chanBrf == nil then return end
-	
-	self:CPrint("Adding player with idx " .. idx .. " to group " .. strGroup)
-	self.tMemberToGroup[idx] = strGroup
-	self.nDirtyFlag = bit32.bor(self.nDirtyFlag, knDirtyGeneral)
-end
-
-function BetterRaidFrames:RemovePlayerFromGroup(idx, strGroup)
-	if self.chanBrf == nil then return end
-	
-	self:CPrint("Removing player with idx " .. idx .. " from group " .. strGroup)
-	self.tMemberToGroup[idx] = nil
-	self.nDirtyFlag = bit32.bor(self.nDirtyFlag, knDirtyGeneral)
-end
-
 function BetterRaidFrames:SendBRFMessage(tMsg)
 	if self.chanBrf == nil then return end
 		
@@ -763,6 +752,8 @@ function BetterRaidFrames:ParseUpdate(tMsg, idx, tMemberData)
 	--self:CPrint("Adding " .. idx .. " to group " .. tMsg.strGroup)
 	self:AddPlayerToGroup(idx, tMsg.strGroup)
 	
+	self.tMemberToGroup[idx] = strGroup
+	
 	-- In case leader changed my group.
 	if tMemberData.strCharacterName == self.kstrMyName then
 		self.settings.strMyGroup = tMsg.strGroup
@@ -815,7 +806,7 @@ function BetterRaidFrames:OnRaidFrameBaseTimer()
 		self:SetDefaultGroup()
 		if self.chanBrf == nil and self.settings.strChannelName then
 			self:JoinBRFChannel(self.settings.strChannelName)
-			Apollo.CreateTimer("ChannelTimer", 1.0, false)
+			Apollo.CreateTimer("BrfSyncTimer", 1.0, false)
 		end
 		
 		self:OnMasterLootUpdate()
@@ -2768,8 +2759,7 @@ function BetterRaidFrames:OnSetChannel(tokens)
 	local chanName = tokens[2]
 	self.settings.strChannelName = chanName
 	self:JoinBRFChannel(chanName)
-	self:SendSync()
-	self:SendUpdate(self.kstrMyName, self.settings.strMyGroup)
+	Apollo.CreateTimer("BrfSyncUpdateTimer", 1.0, false)
 end
 
 -- Command: /brf group <name>
